@@ -1,0 +1,234 @@
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+
+local Window = OrionLib:MakeWindow({Name = "frizzks hub", HidePremium = false, SaveConfig = true, ConfigFolder = "frizzks_hub"})
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function getMissionFile()
+if writefile and readfile and isfile then
+if not isfolder("frizzks_hub") then makefolder("frizzks_hub") end
+local path = "frizzks_hub/missions.txt"
+if isfile(path) then
+local num = tonumber(readfile(path))
+if num then return num end
+end
+end
+return 0
+end
+
+local function saveMissionFile(num)
+if writefile then
+if not isfolder("frizzks_hub") then makefolder("frizzks_hub") end
+writefile("frizzks_hub/missions.txt", tostring(num))
+end
+end
+
+getgenv().frizzks_MissionsPlayed = getMissionFile()
+getgenv().frizzks_FarmDelay = 0.5
+
+local function checkShadowBan()
+local isBanned = false
+pcall(function()
+local stats = LocalPlayer:FindFirstChild("leaderstats")
+if stats then
+local banFlag = stats:FindFirstChild("ShadowBanned") or stats:FindFirstChild("Banned")
+if banFlag then isBanned = banFlag.Value end
+end
+end)
+return isBanned
+end
+
+local function sendWebhook()
+local url = getgenv().frizzks_Webhook
+if not url or url == "" then return end
+local isBanned = checkShadowBan()
+local statusEmoji = isBanned and "❌ Да" or "✅ Нет"
+local stats = LocalPlayer:FindFirstChild("leaderstats")
+local level = stats and stats:FindFirstChild("Level") and stats.Level.Value or "?"
+local gold = stats and stats:FindFirstChild("Gold") and stats.Gold.Value or "?"
+local gems = stats and stats:FindFirstChild("Gems") and stats.Gems.Value or "?"
+
+local embed = {
+    ["title"] = "📦 Run Complete",
+    ["description"] = "Run complete — reward summary attached below.",
+    ["color"] = 3447003,
+    ["fields"] = {
+        {["name"] = "👤 User", ["value"] = LocalPlayer.Name, ["inline"] = true},
+        {["name"] = "🎮 Games Played", ["value"] = tostring(getgenv().frizzks_MissionsPlayed), ["inline"] = true},
+        {["name"] = "✅ Shadow Banned", ["value"] = statusEmoji, ["inline"] = true},
+        {["name"] = "📊 Progression", ["value"] = string.format("**Level:** %s\n**Gold:** %s\n**Gems:** %s", tostring(level), tostring(gold), tostring(gems)), ["inline"] = false}
+    },
+    ["footer"] = {["text"] = "frizzks hub • Game #" .. tostring(getgenv().frizzks_MissionsPlayed) .. " | " .. os.date("%d/%m/%Y, %H:%M")}
+}
+
+local data = {["username"] = "frizzks hub", ["embeds"] = {embed}}
+local body = HttpService:JSONEncode(data)
+local headers = {["Content-Type"] = "application/json"}
+local req = http_request or request or syn.request or fluxus.request
+if req then req({Url = url, Method = "POST", Headers = headers, Body = body}) end
+end
+
+local FarmTab = Window:MakeTab({Name = "Farming", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+FarmTab:AddToggle({Name = "Auto Farm", Default = false, Flag = "AutoFarm", Save = true, Callback = function(Value)
+getgenv().frizzks_AutoFarm = Value
+if Value then
+task.spawn(function()
+while getgenv().frizzks_AutoFarm do
+pcall(function()
+local c = LocalPlayer.Character
+local h = c and c:FindFirstChild("HumanoidRootPart")
+if h then
+local targets = {}
+for _, v in pairs(workspace:GetDescendants()) do
+if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 and v.Name ~= LocalPlayer.Name then
+table.insert(targets, v)
+end
+end
+if #targets > 0 then
+if #targets == 1 then task.wait(math.random(5, 60)) end
+h.CFrame = targets[1].HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+task.wait(0.1)
+local tl = c:FindFirstChildOfClass("Tool")
+if tl then for i = 1, 10 do tl:Activate(); task.wait(0.05) end end
+for _, v in pairs(targets) do
+if v:FindFirstChild("Humanoid") then v.Humanoid.Health = 0 end
+end
+end
+end
+end)
+task.wait(getgenv().frizzks_FarmDelay)
+end
+end)
+end
+end})
+
+FarmTab:AddSlider({Name = "Farm Delay", Min = 0.1, Max = 2, Default = 0.5, Color = Color3.fromRGB(255,255,255), Increment = 0.
+[15.11.2026 15:03] Frizzks: 1, ValueName = "Sec", Callback = function(Value) getgenv().frizzks_FarmDelay = Value end})
+FarmTab:AddToggle({Name = "Auto Retry", Default = true, Flag = "AutoRetry", Save = true, Callback = function(Value) getgenv().frizzks_AutoRetry = Value end})
+FarmTab:AddToggle({Name = "Auto Return to Lobby", Default = true, Flag = "AutoReturn", Save = true, Callback = function(Value) getgenv().frizzks_AutoReturn = Value end})
+FarmTab:AddSlider({Name = "Return Amount", Min = 1, Max = 100, Default = 10, Color = Color3.fromRGB(255,255,255), Increment = 1, ValueName = "Missions", Callback = function(Value) getgenv().frizzks_ReturnAmount = Value end})
+
+local CombatTab = Window:MakeTab({Name = "Combat", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+CombatTab:AddToggle({Name = "Auto Reload", Default = true, Flag = "AutoReload", Save = true, Callback = function(Value)
+getgenv().frizzks_AutoReload = Value
+if Value then
+task.spawn(function()
+while getgenv().frizzks_AutoReload do
+pcall(function()
+local c = LocalPlayer.Character
+local t = c and c:FindFirstChildOfClass("Tool")
+if t then t:Activate() end
+end)
+task.wait(0.1)
+end
+end)
+end
+end})
+CombatTab:AddToggle({Name = "Auto Use Skills", Default = false, Flag = "AutoSkills", Save = true, Callback = function(Value) getgenv().frizzks_AutoSkills = Value end})
+CombatTab:AddDropdown({Name = "Skills", Default = "Drill Thrust", Options = {"Drill Thrust", "Torrential Steel", "Let it Rip", "Rage Mode"}, Flag = "SkillChoice", Callback = function(Value) getgenv().frizzks_SelectedSkill = Value end})
+CombatTab:AddToggle({Name = "Increased Hit Speed", Default = false, Flag = "HitSpeed", Save = true, Callback = function(Value) getgenv().frizzks_HitSpeed = Value end})
+CombatTab:AddSlider({Name = "Multi-Hit (Max Targets)", Min = 1, Max = 20, Default = 20, Color = Color3.fromRGB(255,255,255), Increment = 1, ValueName = "Targets", Callback = function(Value) getgenv().frizzks_MultiHit = Value end})
+CombatTab:AddSlider({Name = "Damage Multiplier", Min = 1, Max = 5, Default = 5, Color = Color3.fromRGB(255,255,255), Increment = 0.5, ValueName = "x", Callback = function(Value) getgenv().frizzks_DamageMult = Value end})
+
+local ExtraTab = Window:MakeTab({Name = "Extra Farm", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+ExtraTab:AddToggle({Name = "Auto Build Watch Towers", Default = false, Flag = "AutoBuild", Save = true, Callback = function(Value) getgenv().frizzks_AutoBuild = Value end})
+ExtraTab:AddToggle({Name = "Auto Collect Spear Supplies", Default = false, Flag = "AutoCollect", Save = true, Callback = function(Value) getgenv().frizzks_AutoCollect = Value end})
+ExtraTab:AddToggle({Name = "Auto Defend Spear Supplies", Default = false, Flag = "AutoDefend", Save = true, Callback = function(Value) getgenv().frizzks_AutoDefend = Value end})
+ExtraTab:AddToggle({Name = "Thunder Spear Support", Default = false, Flag = "ThunderSpear", Save = true, Callback = function(Value) getgenv().frizzks_ThunderSpear = Value end})
+ExtraTab:AddToggle({Name = "Auto Skip Cutscene", Default = true, Flag = "AutoSkip", Save = true, Callback = function(Value) getgenv().frizzks_AutoSkip = Value end})
+ExtraTab:AddToggle({Name = "Auto Open Chests", Default = true, Flag = "AutoChest", Save = true, Callback = function(Value) getgenv().frizzks_AutoChest = Value end})
+
+local QuestTab = Window:MakeTab({Name = "Quests", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+QuestTab:AddToggle({Name = "Auto Spear Quests", Default = false, Flag = "AutoSpearQuest", Save = true, Callback = function(Value) getgenv().frizzks_AutoSpearQuest = Value end})
+QuestTab:AddToggle({Name = "Auto Claim Quests", Default = true, Flag = "AutoClaimQuest", Save = true, Callback = function(Value) getgenv().frizzks_AutoClaimQuest = Value end})
+QuestTab:AddToggle({Name = "Auto Equip Spears", Default = true, Flag = "AutoEquipSpear", Save = true, Callback = function(Value) getgenv().frizzks_AutoEquipSpear = Value end})
+
+local LobbyTab = Window:MakeTab({Name = "Prestige", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+[15.11.2026 15:03] Frizzks: LobbyTab:AddToggle({Name = "Auto Upgrade Gear", Default = false, Flag = "AutoUpgrade", Save = true, Callback = function(Value) getgenv().frizzks_AutoUpgrade = Value end})
+LobbyTab:AddToggle({Name = "Auto Max Skill Tree", Default = false, Flag = "AutoSkillTree", Save = true, Callback = function(Value) getgenv().frizzks_AutoSkillTree = Value end})
+LobbyTab:AddToggle({Name = "Auto Enhance Perks", Default = false, Flag = "AutoEnhance", Save = true, Callback = function(Value) getgenv().frizzks_AutoEnhance = Value end})
+LobbyTab:AddToggle({Name = "Auto Equip Perks", Default = false, Flag = "AutoEquipPerks", Save = true, Callback = function(Value) getgenv().frizzks_AutoEquipPerks = Value end})
+LobbyTab:AddToggle({Name = "Auto Prestige", Default = false, Flag = "AutoPrestige", Save = true, Callback = function(Value) getgenv().frizzks_AutoPrestige = Value end})
+LobbyTab:AddSlider({Name = "Gold Limit", Min = 0, Max = 1000000000, Default = 10000000, Color = Color3.fromRGB(255,255,255), Increment = 1000000, ValueName = "Gold", Callback = function(Value) getgenv().frizzks_PrestigeGold = Value end})
+LobbyTab:AddToggle({Name = "Auto Buy & Use Potions", Default = false, Flag = "AutoPotion", Save = true, Callback = function(Value) getgenv().frizzks_AutoPotion = Value end})
+LobbyTab:AddToggle({Name = "Auto Select Slot", Default = true, Flag = "AutoSlot", Save = true, Callback = function(Value) getgenv().frizzks_AutoSlot = Value end})
+
+local FailsafeTab = Window:MakeTab({Name = "Failsafe", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+FailsafeTab:AddToggle({Name = "Auto Rejoin on Stuck", Default = true, Flag = "AutoRejoin", Save = true, Callback = function(Value)
+getgenv().frizzks_AutoRejoin = Value
+if Value then
+task.spawn(function()
+while getgenv().frizzks_AutoRejoin do
+task.wait(5)
+pcall(function()
+local p = LocalPlayer
+local h = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+if h and h.Health <= 0 then game:GetService("TeleportService"):Teleport(game.PlaceId, p) end
+end)
+end
+end)
+end
+end})
+FailsafeTab:AddToggle({Name = "Auto Die at Streak", Default = false, Flag = "AutoDie", Save = true, Callback = function(Value) getgenv().frizzks_AutoDie = Value end})
+FailsafeTab:AddSlider({Name = "Streak Amount", Min = 1, Max = 100, Default = 20, Color = Color3.fromRGB(255,255,255), Increment = 1, ValueName = "Streak", Callback = function(Value) getgenv().frizzks_StreakAmount = Value end})
+FailsafeTab:AddTextbox({Name = "Webhook URL", Default = "", TextDisappear = false, Callback = function(Value) getgenv().frizzks_Webhook = Value end})
+
+local ConfigTab = Window:MakeTab({Name = "Config", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+ConfigTab:AddDropdown({Name = "Config Mode", Default = "Single", Options = {"Single", "Multi"}, Flag = "ConfigMode", Callback = function(Value) getgenv().frizzks_ConfigMode = Value end})
+ConfigTab:AddButton({Name = "Save Config", Callback = function() OrionLib:SaveConfig() end})
+ConfigTab:AddButton({Name = "Load Config", Callback = function() OrionLib:LoadConfig() end})
+
+task.spawn(function()
+while task.wait(0.1) do
+pcall(function()
+if getgenv().frizzks_MultiHit and getgenv().frizzks_DamageMult then
+local c = LocalPlayer.Character
+local t = c and c:FindFirstChildOfClass("Tool")
+if t then
+local d = t:FindFirstChild("Damage")
+if d then d.Value = d.Value * getgenv().frizzks_DamageMult end
+for _, v in pairs(t:GetDescendants()) do
+if v:IsA("IntValue") and (string.find(string.lower(v.Name), "hit") or string.find(string.lower(v.Name), "target")) then
+v.Value = getgenv().frizzks_MultiHit
+end
+end
+end
+end
+end)
+end
+end)
+
+game:GetService("Workspace").ChildAdded:Connect(function(child)
+if child.Name == "MissionComplete" or child.Name == "Lobby" then
+getgenv().frizzks_MissionsPlayed = getgenv().frizzks_MissionsPlayed + 1
+saveMissionFile(getgenv().frizzks_MissionsPlayed)
+task.spawn(sendWebhook)
+if getgenv().frizzks_AutoReturn and getgenv().frizzks_ReturnAmount then
+if getgenv().frizzks_MissionsPlayed >= getgenv().frizzks_ReturnAmount then
+getgenv().frizzks_MissionsPlayed = 0
+saveMissionFile(0)
+[15.11.2026 15:03] Frizzks: pcall(function() game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer) end)
+end
+end
+end
+end)
+
+task.spawn(function()
+while task.wait(1) do
+pcall(function()
+if getgenv().frizzks_AutoFarm then
+local players = 0
+for _, p in pairs(Players:GetPlayers()) do
+if p ~= LocalPlayer then players = players + 1 end
+end
+if players > 0 then
+getgenv().frizzks_AutoFarm = false
+game:GetService("StarterGui"):SetCore("SendNotification", {Title = "frizzks hub", Text = "Игрок в лобби! Скрипт остановлен для безопасности.", Duration = 5})
+game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+end
+end
+end)
+end
+end)
